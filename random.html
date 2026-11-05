@@ -184,12 +184,12 @@ const KEY = 'bbuleRandomSkill';
 let st = { rank: 'X', want: [], need: 1, min: {}, rep: 1000, q: '' };
 // 돌리기 누적 (저장 안 함)
 const run = { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0, busy: false };
-const REPS = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000];
+const REPS = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 0];
 const runReset = () => Object.assign(run, { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0 });
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {}
 st.want = [...new Set((st.want || []).filter((n) => SK.some((s) => s.n === n)))];
 st.need = Math.min(5, Math.max(1, Math.round(+st.need) || 1));
-st.rep = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000].includes(+st.rep) ? +st.rep : 1000;
+st.rep = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 0].includes(+st.rep) ? +st.rep : 1000;
 st.min = Object.fromEntries(Object.entries(st.min || {}).filter(([n, m]) => st.want.includes(n) && +m > 0).map(([n, m]) => [n, Math.min(5, +m)]));
 const minSum = () => st.want.reduce((a, n) => a + (st.min[n] || 0), 0);
 if (st.need < minSum()) st.need = Math.min(5, minSum());
@@ -316,11 +316,13 @@ function renderGame() {
     <div class="stat"><div class="lb">쓴 비용</div><div class="v">${fmtN(run.cost)}개</div></div>
     <div class="stat"><div class="lb">성공</div><div class="v">${run.wins.toLocaleString()}번</div></div>
     <div class="stat"><div class="lb">이번 도전</div><div class="v">${fmtN(run.since)}번째</div></div>`;
+  const upTo = st.rep ? `최대 <b>${fmtN(st.rep)}번</b>` : '<b>멈출 때까지 계속</b>';
   if (!run.busy) $('playNote').innerHTML = st.want.length
-    ? `한 번 누르면 최대 <b>${fmtN(st.rep)}번</b> 굴리고, 후보가 <b>${st.need}칸 이상</b>${minSum() ? ` (최소 개수를 정한 스킬은 그 개수 이상)` : ''} 나오면 그 자리에서 멈춰요. 비용은 한 번에 ${c}개.`
-    : `후보가 없으면 멈추지 않고 정한 횟수만큼 굴려요. 비용은 한 번에 ${c}개.`;
-  $('rep').innerHTML = REPS.map((n) => `<option value="${n}"${n === st.rep ? ' selected' : ''}>${n.toLocaleString()}번</option>`).join('');
-  $('roll').disabled = run.busy;
+    ? `한 번 누르면 ${upTo} 굴리고, 후보가 <b>${st.need}칸 이상</b>${minSum() ? ` (최소 개수를 정한 스킬은 그 개수 이상)` : ''} 나오면 그 자리에서 멈춰요. 비용은 한 번에 ${c}개.`
+    : `후보가 없으면 조건으로 멈추지 않고 ${upTo} 굴려요. 비용은 한 번에 ${c}개.`;
+  $('rep').innerHTML = REPS.map((n) => `<option value="${n}"${n === st.rep ? ' selected' : ''}>${n ? n.toLocaleString() + '번' : '무한 (멈출 때까지)'}</option>`).join('');
+  $('rep').disabled = run.busy;
+  $('roll').textContent = run.busy ? '⏹ 멈추기' : '🎲 돌리기';
 }
 function showWin(n, cost) {
   const p = rollProb(st.rank, st.want, st.need), mean = p > 0 ? 1 / p : Infinity;
@@ -329,16 +331,18 @@ function showWin(n, cost) {
     <button class="btn roll" data-close="1">닫기</button></div></div>`;
 }
 // 누르면 정한 횟수까지 굴리고 조건이 맞으면 멈춤 — 많이 돌릴 때는 나눠서 화면이 멈추지 않게
+//   반복 0 = 무한 (조건이 맞거나 '멈추기'를 누를 때까지), 굴리는 중에 다시 누르면 멈춤
 function roll() {
-  if (run.busy) return;
-  const want = st.want.slice(), need = st.need, min = Object.assign({}, st.min), rank = st.rank, c = COST(rank), stopOn = want.length > 0, total = st.rep;
-  let left = total;
-  run.busy = true; renderGame();
+  if (run.busy) { run.stop = true; return; }
+  const want = st.want.slice(), need = st.need, min = Object.assign({}, st.min), rank = st.rank, c = COST(rank), stopOn = want.length > 0, total = st.rep || Infinity;
+  let left = total, r = null;
+  run.busy = true; run.stop = false; renderGame();
   const step = () => {
+    if (run.stop) { if (r) { run.last = r; run.lastNo = run.total; } run.busy = false; renderGame(); return; }
     const n = Math.min(left, 20000);
     let won = false;
     for (let k = 0; k < n; k++) {
-      const r = [0, 1, 2, 3, 4].map((s) => drawSlot(rank, s));
+      r = [0, 1, 2, 3, 4].map((s) => drawSlot(rank, s));
       run.total++; run.since++; run.cost += c; left--;
       if (stopOn && hits(r, want, need, min).ok) { run.last = r; run.lastNo = run.total; won = true; break; }
       if (left === 0) { run.last = r; run.lastNo = run.total; }
@@ -347,7 +351,11 @@ function roll() {
       const got = run.since; run.wins++; run.since = 0; run.busy = false;
       renderGame(); showWin(got, got * c); return;
     }
-    if (left > 0) { $('playNote').innerHTML = `굴리는 중… ${fmtN(total - left)} / ${fmtN(total)}번`; setTimeout(step, 0); return; }
+    if (left > 0) {
+      $('playNote').innerHTML = Number.isFinite(total) ? `굴리는 중… ${fmtN(total - left)} / ${fmtN(total)}번 · 멈추기를 누르면 멈춰요` : `무한으로 굴리는 중… 이번에 ${fmtN(run.since)}번째 · 멈추기를 누르면 멈춰요`;
+      $('tally').querySelector('.stat .v').textContent = fmtN(run.total) + '번';
+      setTimeout(step, 0); return;
+    }
     run.busy = false; renderGame();
   };
   step();
