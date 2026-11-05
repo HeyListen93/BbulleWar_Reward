@@ -70,7 +70,8 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 .step span { min-width: 52px; text-align: center; font: 600 13px var(--f-num); }
 .chip-top { display: flex; gap: 8px; align-items: center; }
 .chip { flex-direction: column; align-items: stretch; }
-.chip-bot { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-left: 38px; }
+.chip-bot { display: flex; gap: 8px; align-items: center; justify-content: space-between; padding-left: 38px; margin-top: 4px; }
+.chip-bot select { font: 13px var(--f-body); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .big-num { font: 32px/1.2 var(--f-display); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
@@ -137,7 +138,7 @@ th:first-child, td:first-child { text-align: left; font-family: var(--f-body); }
     <div class="chips" id="want"></div>
     <div style="margin-top:10px"><input type="search" id="q" placeholder="스킬 이름이나 효과로 찾기 (예: 네잎, 추가 클릭, 9급)"></div>
     <div class="list" id="list"></div>
-    <p class="note">누르면 후보에 넣고, 다시 누르면 빼요. 5칸 중 <b>후보에 든 스킬이 정한 칸 수 이상</b>이면 성공이에요 — 어떤 후보든, 같은 후보가 겹쳐 나와도 칸마다 셉니다 (예: 애향심·성공적 실험·불운의 낙인 후보, 최소 3칸 → 애향심·성공적 실험·성공적 실험도 성공). 이 등급에서 안 나오는 급의 스킬은 흐리게 보여요.</p>
+    <p class="note">누르면 후보에 넣고, 다시 누르면 빼요. 5칸 중 <b>후보에 든 스킬이 정한 칸 수 이상</b>이면 성공이에요 — 어떤 후보든, 같은 후보가 겹쳐 나와도 칸마다 셉니다 (예: 애향심·성공적 실험·불운의 낙인 후보, 최소 3칸 → 애향심·성공적 실험·성공적 실험도 성공). 꼭 필요한 스킬은 <b>'이 스킬 최소'</b>로 개수를 정해요 (예: 아카식 블레이드 최소 2개 + 행운 스킬 후보, 후보 중 최소 4칸). 이 등급에서 안 나오는 급의 스킬은 흐리게 보여요.</p>
   </section>
 
   <section class="card">
@@ -180,16 +181,19 @@ const POOL = Array.from({ length: 9 }, (_, t) => SK.filter((s) => s.t === t + 1)
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KEY = 'bbuleRandomSkill';
-let st = { rank: 'X', want: [], need: 1, rep: 1000, q: '' };
+let st = { rank: 'X', want: [], need: 1, min: {}, rep: 1000, q: '' };
 // 돌리기 누적 (저장 안 함)
 const run = { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0, busy: false };
-const REPS = [1, 10, 100, 1000, 10000, 100000, 1000000];
+const REPS = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000];
 const runReset = () => Object.assign(run, { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0 });
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {}
 st.want = [...new Set((st.want || []).filter((n) => SK.some((s) => s.n === n)))];
 st.need = Math.min(5, Math.max(1, Math.round(+st.need) || 1));
-st.rep = [1, 10, 100, 1000, 10000, 100000, 1000000].includes(+st.rep) ? +st.rep : 1000;
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rank: st.rank, want: st.want, need: st.need, rep: st.rep })); } catch (e) {} };
+st.rep = [1, 10, 100, 1000, 10000, 100000, 1000000, 10000000].includes(+st.rep) ? +st.rep : 1000;
+st.min = Object.fromEntries(Object.entries(st.min || {}).filter(([n, m]) => st.want.includes(n) && +m > 0).map(([n, m]) => [n, Math.min(5, +m)]));
+const minSum = () => st.want.reduce((a, n) => a + (st.min[n] || 0), 0);
+if (st.need < minSum()) st.need = Math.min(5, minSum());
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rank: st.rank, want: st.want, need: st.need, min: st.min, rep: st.rep })); } catch (e) {} };
 const skill = (n) => SK.find((s) => s.n === n);
 
 // 칸 s 에서 스킬 x 가 나올 확률
@@ -198,16 +202,30 @@ const pRoll1 = (rank, x) => 1 - [0, 1, 2, 3, 4].reduce((q, s) => q * (1 - pSlot(
 
 // 칸 s 가 후보 중 하나일 확률
 const pSlotSet = (rank, s, want) => want.reduce((a, n) => a + pSlot(rank, s, skill(n)), 0);
-// 한 번 돌릴 때 5칸 중 후보가 need 칸 이상 나올 확률 — 칸마다 따로라 '지금까지 후보 칸 수' 로 정확히 셈
-function rollProb(rank, want, need) {
+// 한 번 돌릴 때 성공 확률 = 5칸 중 후보가 need 칸 이상 + 최소 개수를 정한 스킬은 각각 그 개수 이상
+//   칸마다 따로 뽑으니 '지금까지 후보 칸 수 · 정한 스킬마다 모은 개수' 를 상태로 정확히 셈
+function rollProb(rank, want, need, min = st.min) {
   if (!want.length) return 0;
-  let dp = [1, 0, 0, 0, 0, 0];
+  const ms = want.filter((n) => (min[n] || 0) > 0), mv = ms.map((n) => min[n]);
+  need = Math.max(need, mv.reduce((a, b) => a + b, 0));
+  if (need > 5) return 0;
+  const key = (k, c) => k + '|' + c.join(',');
+  let dp = new Map([[key(0, ms.map(() => 0)), 1]]);
   for (let s = 0; s < 5; s++) {
-    const q = pSlotSet(rank, s, want), nx = [0, 0, 0, 0, 0, 0];
-    dp.forEach((v, k) => { nx[k] += v * (1 - q); if (k < 5) nx[k + 1] += v * q; });
+    const outs = want.map((n) => ({ p: pSlot(rank, s, skill(n)), i: ms.indexOf(n) })).filter((o) => o.p > 0);
+    const rest = 1 - outs.reduce((a, o) => a + o.p, 0), nx = new Map();
+    const add = (k, v) => nx.set(k, (nx.get(k) || 0) + v);
+    for (const [kk, v] of dp) {
+      const [ks, cs] = kk.split('|'), k = +ks, c = cs ? cs.split(',').map(Number) : [];
+      add(kk, v * rest);
+      outs.forEach((o) => {
+        const c2 = c.slice(); if (o.i >= 0) c2[o.i] = Math.min(mv[o.i], c2[o.i] + 1);
+        add(key(Math.min(need, k + 1), c2), v * o.p);
+      });
+    }
     dp = nx;
   }
-  return dp.slice(need).reduce((a, b) => a + b, 0);
+  return dp.get(key(need, mv)) || 0;
 }
 const expSlots = (rank, want) => [0, 1, 2, 3, 4].reduce((a, s) => a + pSlotSet(rank, s, want), 0);
 
@@ -227,15 +245,21 @@ function renderRanks() {
   const lo = (w) => w.findIndex((x) => x > 0) + 1, hi = (w) => 9 - [...w].reverse().findIndex((x) => x > 0);
   $('rankNote').innerHTML = `칸마다 나올 수 있는 급: ${tb.map((w, i) => `${i + 1}번 ${lo(w)}~${hi(w)}급`).join(' · ')} · 한 번 돌리는 데 ${COST(st.rank)}개 (뿔레 코인 또는 랜덤 포인트)`;
 }
+// 최소 개수 고르기: 설정 없음 · 1 · 2 … (다른 스킬에 정한 개수와 합쳐 5칸까지)
+function minOpts(n) {
+  const cur = st.min[n] || 0, room = 5 - (minSum() - cur);
+  return ['<option value="0">설정 없음</option>'].concat([1, 2, 3, 4, 5].filter((m) => m <= room).map((m) => `<option value="${m}"${m === cur ? ' selected' : ''}>${m}개</option>`)).join('');
+}
 function renderWant() {
   const ok = st.want.length > 0;
-  $('needBox').innerHTML = `<span>후보 중</span><span class="step"><button data-need="-1" title="한 칸 줄이기"${st.need <= 1 ? ' disabled' : ''}>−</button><span>최소 ${st.need}칸</span><button data-need="1" title="한 칸 늘리기"${st.need >= 5 ? ' disabled' : ''}>+</button></span>
+  $('needBox').innerHTML = `<span>후보 중</span><span class="step"><button data-need="-1" title="한 칸 줄이기"${st.need <= Math.max(1, minSum()) ? ' disabled' : ''}>−</button><span>최소 ${st.need}칸</span><button data-need="1" title="한 칸 늘리기"${st.need >= 5 ? ' disabled' : ''}>+</button></span>
     <span class="muted" style="font-size:13px">${ok ? `한 번에 후보가 평균 ${expSlots(st.rank, st.want).toFixed(2)}칸 나와요` : '5칸 중 후보가 몇 칸 이상 나와야 하는지'}</span>`;
   $('want').innerHTML = ok ? st.want.map((n) => {
     const x = skill(n), p = pRoll1(st.rank, x);
     return `<div class="chip"><div class="chip-top"><span class="tier t${x.t}">${x.t}급</span><div class="grow"><div>${esc(x.n)}</div><div class="tx">${esc(x.x)}</div></div>
-      <span class="p" title="한 번 돌릴 때 이 스킬이 한 칸이라도 나올 확률">${p > 0 ? fmtP(p) : '<span style="color:var(--bad)">안 나옴</span>'}</span>
-      <button class="x" data-del="${esc(n)}" title="빼기">✕</button></div></div>`;
+      <button class="x" data-del="${esc(n)}" title="빼기">✕</button></div>
+      <div class="chip-bot"><label class="muted" style="font-size:13px">이 스킬 최소 <select data-min="${esc(n)}">${minOpts(n)}</select></label>
+      <span class="p" title="한 번 돌릴 때 이 스킬이 한 칸이라도 나올 확률">${p > 0 ? `한 칸이라도 ${fmtP(p)}` : '<span style="color:var(--bad)">안 나옴</span>'}</span></div></div>`;
   }).join('') : '<p class="note" style="margin:0">아래에서 후보 스킬을 눌러 넣어 주세요.</p>';
 }
 function renderList() {
@@ -253,7 +277,7 @@ function renderOut() {
   if (!st.want.length) { $('out').innerHTML = '<p class="note" style="margin:0">원하는 스킬을 넣으면 나와요.</p>'; return; }
   const p = rollProb(st.rank, st.want, st.need), c = COST(st.rank);
   if (!(p > 0)) {
-    $('out').innerHTML = `<p style="margin:0"><b style="color:var(--bad)">${st.rank} 등급에선 후보가 ${st.need}칸까지 안 나와요.</b> <span class="muted">후보가 나올 수 있는 칸이 그보다 적어요 (이 등급에서 안 나오는 급이거나, 높은 급은 뒤쪽 칸에서만 나와요).</span></p>`;
+    $('out').innerHTML = `<p style="margin:0"><b style="color:var(--bad)">${st.rank} 등급에선 이 조건이 안 나와요.</b> <span class="muted">후보(또는 최소 개수를 정한 스킬)가 나올 수 있는 칸이 그보다 적어요 (이 등급에서 안 나오는 급이거나, 높은 급은 뒤쪽 칸에서만 나와요).</span></p>`;
     return;
   }
   const mean = 1 / p;
@@ -273,9 +297,10 @@ function drawSlot(rank, s) {
   const pool = POOL[t];
   return pool[Math.floor(Math.random() * pool.length)];
 }
-function hits(roll, want, need) {
+function hits(roll, want, need, min = st.min) {
   const mark = roll.map((x) => want.includes(x.n)), k = mark.filter(Boolean).length;
-  return { ok: k >= need, mark, k };
+  const ok = k >= need && want.every((n) => roll.filter((x) => x.n === n).length >= (min[n] || 0));
+  return { ok, mark, k };
 }
 // 게임 같은 결과 칸 + 누적
 function renderGame() {
@@ -292,7 +317,7 @@ function renderGame() {
     <div class="stat"><div class="lb">성공</div><div class="v">${run.wins.toLocaleString()}번</div></div>
     <div class="stat"><div class="lb">이번 도전</div><div class="v">${fmtN(run.since)}번째</div></div>`;
   if (!run.busy) $('playNote').innerHTML = st.want.length
-    ? `한 번 누르면 최대 <b>${fmtN(st.rep)}번</b> 굴리고, 후보가 <b>${st.need}칸 이상</b> 나오면 그 자리에서 멈춰요. 비용은 한 번에 ${c}개.`
+    ? `한 번 누르면 최대 <b>${fmtN(st.rep)}번</b> 굴리고, 후보가 <b>${st.need}칸 이상</b>${minSum() ? ` (최소 개수를 정한 스킬은 그 개수 이상)` : ''} 나오면 그 자리에서 멈춰요. 비용은 한 번에 ${c}개.`
     : `후보가 없으면 멈추지 않고 정한 횟수만큼 굴려요. 비용은 한 번에 ${c}개.`;
   $('rep').innerHTML = REPS.map((n) => `<option value="${n}"${n === st.rep ? ' selected' : ''}>${n.toLocaleString()}번</option>`).join('');
   $('roll').disabled = run.busy;
@@ -306,7 +331,7 @@ function showWin(n, cost) {
 // 누르면 정한 횟수까지 굴리고 조건이 맞으면 멈춤 — 많이 돌릴 때는 나눠서 화면이 멈추지 않게
 function roll() {
   if (run.busy) return;
-  const want = st.want.slice(), need = st.need, rank = st.rank, c = COST(rank), stopOn = want.length > 0, total = st.rep;
+  const want = st.want.slice(), need = st.need, min = Object.assign({}, st.min), rank = st.rank, c = COST(rank), stopOn = want.length > 0, total = st.rep;
   let left = total;
   run.busy = true; renderGame();
   const step = () => {
@@ -315,7 +340,7 @@ function roll() {
     for (let k = 0; k < n; k++) {
       const r = [0, 1, 2, 3, 4].map((s) => drawSlot(rank, s));
       run.total++; run.since++; run.cost += c; left--;
-      if (stopOn && hits(r, want, need).ok) { run.last = r; run.lastNo = run.total; won = true; break; }
+      if (stopOn && hits(r, want, need, min).ok) { run.last = r; run.lastNo = run.total; won = true; break; }
       if (left === 0) { run.last = r; run.lastNo = run.total; }
     }
     if (won) {
@@ -336,13 +361,19 @@ document.addEventListener('click', (e) => {
   if (b.id === 'reset') { if (!run.busy) { runReset(); renderGame(); } return; }
   if (run.busy) return;
   if (b.dataset.rank) { st.rank = b.dataset.rank; runReset(); save(); renderAll(); return; }
-  if (b.dataset.add != null) { if (st.want.includes(b.dataset.add)) st.want = st.want.filter((w) => w !== b.dataset.add); else st.want.push(b.dataset.add); }
-  else if (b.dataset.need != null) { st.need = Math.min(5, Math.max(1, st.need + +b.dataset.need)); }
-  else if (b.dataset.del != null) { st.want = st.want.filter((w) => w !== b.dataset.del); }
+  if (b.dataset.add != null) { if (st.want.includes(b.dataset.add)) { st.want = st.want.filter((w) => w !== b.dataset.add); delete st.min[b.dataset.add]; } else st.want.push(b.dataset.add); }
+  else if (b.dataset.need != null) { st.need = Math.min(5, Math.max(1, minSum(), st.need + +b.dataset.need)); }
+  else if (b.dataset.del != null) { st.want = st.want.filter((w) => w !== b.dataset.del); delete st.min[b.dataset.del]; }
   run.since = 0; save(); renderWant(); renderList(); renderOut(); renderGame();
 });
 $('q').addEventListener('input', (e) => { st.q = e.target.value; renderList(); });
 $('rep').addEventListener('change', (e) => { st.rep = +e.target.value; save(); renderGame(); });
+$('want').addEventListener('change', (e) => {
+  const n = e.target.dataset.min; if (n == null || run.busy) return;
+  const m = +e.target.value; if (m > 0) st.min[n] = m; else delete st.min[n];
+  if (st.need < minSum()) st.need = minSum();
+  run.since = 0; save(); renderWant(); renderOut(); renderGame();
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('modal').innerHTML = ''; });
 renderAll();
 </script>
