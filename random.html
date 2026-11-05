@@ -86,6 +86,30 @@ th:first-child, td:first-child { text-align: left; font-family: var(--f-body); }
 .roll .slot.hit { border-color: var(--good); background: var(--good-soft); }
 .roll .slot .sn { color: var(--muted); font: 12px var(--f-num); width: 34px; flex: none; }
 .res { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--accent-soft); }
+/* 게임 같은 결과 칸 (늘 어두움) */
+.game { background: #1e1b16; border: 1px solid #3d372d; border-radius: 10px; padding: 12px; color: #ece6d8; }
+.game .gh { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.game .gt { font: 18px/1.2 var(--f-display); color: #f2c14e; }
+.game .gn { font: 12px var(--f-num); color: #a39b88; }
+.gslot { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; border: 1px solid transparent; }
+.gslot + .gslot { margin-top: 3px; }
+.gslot .sn { color: #8a826f; font: 12px var(--f-num); width: 30px; flex: none; }
+.gslot .nm { font-weight: 600; }
+.gslot .tx { color: #a39b88; font-size: 12px; }
+.gslot.hit { border-color: #f2c14e; background: rgba(242, 193, 78, .12); }
+.gslot.hit .nm { color: #ffd76a; }
+.gslot.empty { color: #6b6455; }
+.play { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.play select { font: 14px var(--f-num); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.btn.roll { background: var(--accent); border-color: var(--accent); color: #fff; padding: 10px 20px; font-size: 16px; }
+.btn.roll:disabled { opacity: .6; cursor: default; }
+.tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 10px; }
+.tally .stat .v { font-size: 17px; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, .55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+.modal { background: var(--panel); border-radius: 12px; padding: 22px 20px 16px; max-width: 360px; width: 100%; text-align: center; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
+.modal .btn { display: block; margin: 0 auto; }
+.modal h3 { margin: 0 0 8px; font: 22px/1.2 var(--f-display); }
+.modal p { margin: 0 0 14px; }
 @media (max-width: 520px) {
   h1 { font-size: 22px; }
   input { font-size: 16px; }
@@ -117,10 +141,23 @@ th:first-child, td:first-child { text-align: left; font-family: var(--f-body); }
   </section>
 
   <section class="card">
-    <h2>③ 몇 번 만에 나오나</h2>
+    <h2>③ 돌려 보기</h2>
+    <div class="game" id="game"></div>
+    <div class="play">
+      <button class="btn roll" id="roll">🎲 돌리기</button>
+      <label class="muted" style="font-size:14px">반복 <select id="rep"></select></label>
+      <button class="btn" id="reset" title="누적 횟수·비용·성공을 0 으로">횟수 초기화</button>
+    </div>
+    <p class="note" id="playNote"></p>
+    <div class="tally" id="tally"></div>
+  </section>
+
+  <section class="card">
+    <h2>④ 몇 번 만에 나오나 (확률로 계산)</h2>
     <div id="out"></div>
   </section>
 
+  <div id="modal"></div>
   <p class="note">게임 데이터 기준: 한 번 돌리면 5칸을 각각 따로 뽑아요 (같은 스킬이 두 칸에 나올 수 있음). 칸마다 랜용 등급에 맞는 확률표로 스킬 급(1~9급)을 먼저 정하고, 그 급의 스킬 중 하나를 같은 확률로 골라요. 순서는 상관없이 5칸 중 후보 스킬이 나온 칸이 정한 수 이상이면 성공으로 셉니다.</p>
 </div>
 <script>
@@ -143,11 +180,16 @@ const POOL = Array.from({ length: 9 }, (_, t) => SK.filter((s) => s.t === t + 1)
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KEY = 'bbuleRandomSkill';
-let st = { rank: 'X', want: [], need: 1, q: '' };
+let st = { rank: 'X', want: [], need: 1, rep: 1000, q: '' };
+// 돌리기 누적 (저장 안 함)
+const run = { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0, busy: false };
+const REPS = [1, 10, 100, 1000, 10000, 100000, 1000000];
+const runReset = () => Object.assign(run, { total: 0, cost: 0, since: 0, wins: 0, last: null, lastNo: 0 });
 try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {}
 st.want = [...new Set((st.want || []).filter((n) => SK.some((s) => s.n === n)))];
 st.need = Math.min(5, Math.max(1, Math.round(+st.need) || 1));
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rank: st.rank, want: st.want, need: st.need })); } catch (e) {} };
+st.rep = [1, 10, 100, 1000, 10000, 100000, 1000000].includes(+st.rep) ? +st.rep : 1000;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rank: st.rank, want: st.want, need: st.need, rep: st.rep })); } catch (e) {} };
 const skill = (n) => SK.find((s) => s.n === n);
 
 // 칸 s 에서 스킬 x 가 나올 확률
@@ -207,7 +249,7 @@ function renderList() {
     <div><div class="nm">${esc(s.n)}${st.want.includes(s.n) ? ' <span class="muted" style="font-weight:400">✓ 넣음</span>' : ''}</div><div class="tx">${esc(s.x)}</div></div></div>`).join('') || '<div class="item muted">찾는 스킬이 없어요</div>';
 }
 
-function renderOut(sim) {
+function renderOut() {
   if (!st.want.length) { $('out').innerHTML = '<p class="note" style="margin:0">원하는 스킬을 넣으면 나와요.</p>'; return; }
   const p = rollProb(st.rank, st.want, st.need), c = COST(st.rank);
   if (!(p > 0)) {
@@ -220,10 +262,7 @@ function renderOut(sim) {
       <div class="stat"><div class="lb">한 번에 나올 확률</div><div class="v">${fmtP(p)}</div></div>
       <div class="stat"><div class="lb">평균 몇 번</div><div class="v">${fmtN(mean)}번</div></div>
       <div class="stat"><div class="lb">평균 비용</div><div class="v">${fmtN(mean * c)}개</div></div></div>
-    <div class="tbl-wrap"><table><thead><tr><th></th><th>돌린 횟수</th><th>비용</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="row" style="margin-top:12px"><button class="btn big" id="go">🎲 직접 돌려 보기</button>
-      <span class="muted" style="font-size:13px">나올 때까지 실제로 굴려 봐요</span></div>
-    <div id="simOut">${sim || ''}</div>`;
+    <div class="tbl-wrap"><table><thead><tr><th></th><th>돌린 횟수</th><th>비용</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // 한 칸 뽑기
@@ -238,45 +277,73 @@ function hits(roll, want, need) {
   const mark = roll.map((x) => want.includes(x.n)), k = mark.filter(Boolean).length;
   return { ok: k >= need, mark, k };
 }
-function simulate() {
-  const p = rollProb(st.rank, st.want, st.need), c = COST(st.rank);
-  const LIMIT = 3e6;
-  let n = 0, roll = null, best = null, bestHit = -1, ok = false;
-  const t0 = performance.now();
-  while (n < LIMIT) {
-    n++;
-    roll = [0, 1, 2, 3, 4].map((s) => drawSlot(st.rank, s));
-    const h = hits(roll, st.want, st.need);
-    if (h.ok) { ok = true; break; }
-    if (h.k > bestHit) { bestHit = h.k; best = roll; }
-  }
-  const ms = performance.now() - t0;
-  let html;
-  if (ok) {
-    const h = hits(roll, st.want, st.need), luck = n <= 1 / p ? '평균보다 빨리 나왔어요 🎉' : '평균보다 늦게 나왔어요';
-    html = `<div class="res"><div class="big-num">${fmtN(n)}번째</div><div>비용 ${fmtN(n * c)}개 · ${luck}</div>
-      <div class="roll">${roll.map((x, i) => `<div class="slot${h.mark[i] ? ' hit' : ''}"><span class="sn">${i + 1}번</span><span class="tier t${x.t}">${x.t}급</span><span>${esc(x.n)}</span></div>`).join('')}</div></div>`;
-  } else {
-    // 너무 드물면 실제로 다 굴리지 않고 같은 분포에서 횟수만 뽑음
-    const m = Math.max(1, Math.ceil(Math.log(1 - Math.random()) / Math.log(1 - p)));
-    html = `<div class="res"><div class="big-num">${fmtN(m)}번째</div><div>비용 ${fmtN(m * c)}개</div>
-      <p class="note">${fmtN(LIMIT)}번까지 굴려도 안 나와서, 나머지는 확률로 횟수만 뽑았어요. 그동안 후보가 가장 많이 나온 판 (${bestHit}칸):</p>
-      <div class="roll">${(best || roll).map((x, i) => `<div class="slot${hits(best || roll, st.want, st.need).mark[i] ? ' hit' : ''}"><span class="sn">${i + 1}번</span><span class="tier t${x.t}">${x.t}급</span><span>${esc(x.n)}</span></div>`).join('')}</div></div>`;
-  }
-  renderOut(html);
+// 게임 같은 결과 칸 + 누적
+function renderGame() {
+  const r = run.last, h = r && st.want.length ? hits(r, st.want, st.need) : null;
+  $('game').innerHTML = `<div class="gh"><span class="gt">${st.rank} 등급 랜용</span><span class="gn">${r ? `${run.lastNo.toLocaleString()}번째 결과${h ? ` · 후보 ${h.k}칸` : ''}` : '아직 안 돌림'}</span></div>
+    ${[0, 1, 2, 3, 4].map((i) => {
+      const x = r && r[i];
+      return x ? `<div class="gslot${h && h.mark[i] ? ' hit' : ''}"><span class="sn">${i + 1}번</span><span class="tier t${x.t}">${x.t}급</span><div><div class="nm">${esc(x.n)}</div><div class="tx">${esc(x.x)}</div></div></div>`
+        : `<div class="gslot empty"><span class="sn">${i + 1}번</span><span>(비어 있음)</span></div>`;
+    }).join('')}`;
+  const c = COST(st.rank);
+  $('tally').innerHTML = `<div class="stat"><div class="lb">지금까지 돌림</div><div class="v">${fmtN(run.total)}번</div></div>
+    <div class="stat"><div class="lb">쓴 비용</div><div class="v">${fmtN(run.cost)}개</div></div>
+    <div class="stat"><div class="lb">성공</div><div class="v">${run.wins.toLocaleString()}번</div></div>
+    <div class="stat"><div class="lb">이번 도전</div><div class="v">${fmtN(run.since)}번째</div></div>`;
+  if (!run.busy) $('playNote').innerHTML = st.want.length
+    ? `한 번 누르면 최대 <b>${fmtN(st.rep)}번</b> 굴리고, 후보가 <b>${st.need}칸 이상</b> 나오면 그 자리에서 멈춰요. 비용은 한 번에 ${c}개.`
+    : `후보가 없으면 멈추지 않고 정한 횟수만큼 굴려요. 비용은 한 번에 ${c}개.`;
+  $('rep').innerHTML = REPS.map((n) => `<option value="${n}"${n === st.rep ? ' selected' : ''}>${n.toLocaleString()}번</option>`).join('');
+  $('roll').disabled = run.busy;
+}
+function showWin(n, cost) {
+  const p = rollProb(st.rank, st.want, st.need), mean = p > 0 ? 1 / p : Infinity;
+  $('modal').innerHTML = `<div class="modal-bg" data-close="1"><div class="modal"><h3>뽑기 성공 🎉</h3>
+    <p><b>${fmtN(n)}번</b> 돌려서 원하는 스킬을 얻었어요.<br><span class="muted">비용 ${fmtN(cost)}개 · 평균 ${fmtN(mean)}번보다 ${n <= mean ? '빨랐어요' : '늦었어요'}</span></p>
+    <button class="btn roll" data-close="1">닫기</button></div></div>`;
+}
+// 누르면 정한 횟수까지 굴리고 조건이 맞으면 멈춤 — 많이 돌릴 때는 나눠서 화면이 멈추지 않게
+function roll() {
+  if (run.busy) return;
+  const want = st.want.slice(), need = st.need, rank = st.rank, c = COST(rank), stopOn = want.length > 0, total = st.rep;
+  let left = total;
+  run.busy = true; renderGame();
+  const step = () => {
+    const n = Math.min(left, 20000);
+    let won = false;
+    for (let k = 0; k < n; k++) {
+      const r = [0, 1, 2, 3, 4].map((s) => drawSlot(rank, s));
+      run.total++; run.since++; run.cost += c; left--;
+      if (stopOn && hits(r, want, need).ok) { run.last = r; run.lastNo = run.total; won = true; break; }
+      if (left === 0) { run.last = r; run.lastNo = run.total; }
+    }
+    if (won) {
+      const got = run.since; run.wins++; run.since = 0; run.busy = false;
+      renderGame(); showWin(got, got * c); return;
+    }
+    if (left > 0) { $('playNote').innerHTML = `굴리는 중… ${fmtN(total - left)} / ${fmtN(total)}번`; setTimeout(step, 0); return; }
+    run.busy = false; renderGame();
+  };
+  step();
 }
 
-function renderAll() { renderRanks(); renderWant(); renderList(); renderOut(); }
+function renderAll() { renderRanks(); renderWant(); renderList(); renderOut(); renderGame(); }
 document.addEventListener('click', (e) => {
-  const b = e.target.closest('[data-rank],[data-add],[data-del],[data-need],#go'); if (!b) return;
-  if (b.id === 'go') { simulate(); return; }
-  if (b.dataset.rank) { st.rank = b.dataset.rank; save(); renderAll(); return; }
+  const b = e.target.closest('[data-rank],[data-add],[data-del],[data-need],[data-close],#roll,#reset'); if (!b) return;
+  if (b.dataset.close) { if (e.target === b) $('modal').innerHTML = ''; return; }
+  if (b.id === 'roll') { roll(); return; }
+  if (b.id === 'reset') { if (!run.busy) { runReset(); renderGame(); } return; }
+  if (run.busy) return;
+  if (b.dataset.rank) { st.rank = b.dataset.rank; runReset(); save(); renderAll(); return; }
   if (b.dataset.add != null) { if (st.want.includes(b.dataset.add)) st.want = st.want.filter((w) => w !== b.dataset.add); else st.want.push(b.dataset.add); }
   else if (b.dataset.need != null) { st.need = Math.min(5, Math.max(1, st.need + +b.dataset.need)); }
   else if (b.dataset.del != null) { st.want = st.want.filter((w) => w !== b.dataset.del); }
-  save(); renderWant(); renderList(); renderOut();
+  run.since = 0; save(); renderWant(); renderList(); renderOut(); renderGame();
 });
 $('q').addEventListener('input', (e) => { st.q = e.target.value; renderList(); });
+$('rep').addEventListener('change', (e) => { st.rep = +e.target.value; save(); renderGame(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('modal').innerHTML = ''; });
 renderAll();
 </script>
 </body>
