@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="뿔레전쟁 클리커 랜덤 용병 스킬 뽑기 계산기 — 원하는 스킬이 몇 번 만에 나오나">
+<title>랜용 스킬 뽑기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #f3f1ec; --panel: #fbfaf7; --panel-2: #ece8df; --line: #d9d3c6; --fg: #23211c; --muted: #6b665a;
+  --accent: #9a5b1c; --accent-soft: #f1e2cf; --good: #2f7a4a; --good-soft: #dcefe2; --bad: #b23a2e; --bad-soft: #f5dcd8;
+  --t1: #9a9a94; --t2: #6a8f5a; --t3: #2fae3c; --t4: #2f6fd6; --t5: #8a35d6; --t6: #e0a000; --t7: #d86a0a; --t8: #d42a2a; --t9: #cc2bb0;
+  --f-display: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17150f; --panel: #1f1c16; --panel-2: #29251d; --line: #3a352a; --fg: #ebe6da; --muted: #a39b88;
+    --accent: #d99a55; --accent-soft: #3b2c1b; --good: #5cc283; --good-soft: #1c3325; --bad: #ec7363; --bad-soft: #3d1f1b;
+    --t1: #b8b8b2; --t2: #8fb57d; --t3: #4fd85a; --t4: #4f8ff0; --t5: #a855f7; --t6: #f5b52a; --t7: #f08a2a; --t8: #ef4444; --t9: #e855d0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17150f; --panel: #1f1c16; --panel-2: #29251d; --line: #3a352a; --fg: #ebe6da; --muted: #a39b88;
+  --accent: #d99a55; --accent-soft: #3b2c1b; --good: #5cc283; --good-soft: #1c3325; --bad: #ec7363; --bad-soft: #3d1f1b;
+  --t1: #b8b8b2; --t2: #8fb57d; --t3: #4fd85a; --t4: #4f8ff0; --t5: #a855f7; --t6: #f5b52a; --t7: #f08a2a; --t8: #ef4444; --t9: #e855d0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px 48px; }
+h1 { font: 26px/1.2 var(--f-display); margin: 0 0 14px; letter-spacing: .5px; }
+h2 { font-size: 17px; margin: 0 0 10px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.note { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.muted { color: var(--muted); }
+input { font: 15px var(--f-body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; width: 100%; }
+input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+.btn { font: 600 14px var(--f-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.big { padding: 9px 16px; font-size: 15px; }
+.rank { min-width: 42px; }
+.tier { display: inline-block; min-width: 30px; padding: 0 5px; border-radius: 5px; color: #fff; font: 600 12px/20px var(--f-num); text-align: center; flex: none; }
+.t1 { background: var(--t1); } .t2 { background: var(--t2); } .t3 { background: var(--t3); } .t4 { background: var(--t4); } .t5 { background: var(--t5); }
+.t6 { background: var(--t6); } .t7 { background: var(--t7); } .t8 { background: var(--t8); } .t9 { background: var(--t9); }
+.list { max-height: 300px; overflow-y: auto; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.item { display: flex; gap: 8px; align-items: flex-start; padding: 7px 10px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.item:last-child { border-bottom: 0; }
+.item:hover { background: var(--panel-2); }
+.item.off { opacity: .45; }
+.item .nm { font-weight: 600; }
+.item .tx { color: var(--muted); font-size: 13px; }
+.chips { display: flex; flex-direction: column; gap: 6px; }
+.chip { display: flex; gap: 8px; align-items: center; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.chip .grow { flex: 1; min-width: 0; }
+.chip .tx { color: var(--muted); font-size: 12px; }
+.chip .p { font: 13px var(--f-num); color: var(--muted); white-space: nowrap; }
+.chip .x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 0 4px; }
+.big-num { font: 32px/1.2 var(--f-display); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
+.stat { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.stat .lb { color: var(--muted); font-size: 13px; }
+.stat .v { font: 600 20px/1.3 var(--f-num); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+th, td { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: right; font-family: var(--f-num); }
+th { color: var(--muted); font-weight: 600; font-family: var(--f-body); }
+th:first-child, td:first-child { text-align: left; font-family: var(--f-body); }
+.tbl-wrap { overflow-x: auto; }
+.roll { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+.roll .slot { display: flex; gap: 8px; align-items: center; padding: 5px 8px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); font-size: 14px; }
+.roll .slot.hit { border-color: var(--good); background: var(--good-soft); }
+.roll .slot .sn { color: var(--muted); font: 12px var(--f-num); width: 34px; flex: none; }
+.res { margin-top: 12px; padding: 12px; border-radius: 8px; background: var(--accent-soft); }
+@media (max-width: 520px) {
+  h1 { font-size: 22px; }
+  input { font-size: 16px; }
+  .card { padding: 12px; }
+  th, td { padding: 5px 3px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+    <h1 style="margin:0">랜용 스킬 뽑기</h1>
+    <a href="./" style="color:var(--accent)">← 재화 효율 계산기</a>
+  </header>
+
+  <section class="card">
+    <h2>① 랜용 등급</h2>
+    <div class="row" id="ranks"></div>
+    <p class="note" id="rankNote"></p>
+  </section>
+
+  <section class="card">
+    <h2>② 원하는 스킬</h2>
+    <div class="chips" id="want"></div>
+    <div style="margin-top:10px"><input type="search" id="q" placeholder="스킬 이름이나 효과로 찾기 (예: 네잎, 추가 클릭, 9급)"></div>
+    <div class="list" id="list"></div>
+    <p class="note">누르면 원하는 스킬에 들어가요. 같은 스킬을 두 번 넣으면 두 칸에 다 나와야 성공이에요. 이 등급에서 안 나오는 급의 스킬은 흐리게 보여요.</p>
+  </section>
+
+  <section class="card">
+    <h2>③ 몇 번 만에 나오나</h2>
+    <div id="out"></div>
+  </section>
+
+  <p class="note">게임 데이터 기준: 한 번 돌리면 5칸을 각각 따로 뽑아요 (같은 스킬이 두 칸에 나올 수 있음). 칸마다 랜용 등급에 맞는 확률표로 스킬 급(1~9급)을 먼저 정하고, 그 급의 스킬 중 하나를 같은 확률로 골라요. 순서는 상관없이 원하는 스킬이 5칸 안에 다 있으면 성공으로 셉니다.</p>
+</div>
+<script>
+const SK = [{"n":"금화 발견","t":1,"x":"골드 획득량 13%"},{"n":"용맹","t":1,"x":"데미지 45%"},{"n":"용맹+","t":1,"x":"데미지 75%"},{"n":"믿음","t":1,"x":"모든 용병의 클릭 데미지 40%"},{"n":"파이어볼","t":1,"x":"데미지 75%"},{"n":"회오리","t":1,"x":"데미지 75%"},{"n":"퍼루나 해의 진주","t":1,"x":"데미지 75% & [퍼루나]지역 용병 데미지 [퍼루나]용병 수 * 50%"},{"n":"웨폰 마스터리","t":1,"x":"데미지 75%"},{"n":"스펠북","t":1,"x":"데미지 75%"},{"n":"인간의 자긍심","t":1,"x":"데미지 75%"},{"n":"야생 본능","t":1,"x":"데미지 75%"},{"n":"도약","t":1,"x":"데미지 75%"},{"n":"격투술","t":1,"x":"데미지 75%"},{"n":"라이트닝","t":1,"x":"데미지 75%"},{"n":"탐지 구슬","t":1,"x":"아이템 드랍률 12%"},{"n":"왕실 칙령","t":1,"x":"명성 8% & 즉시 공격 속도 6%"},{"n":"금화 발견+","t":2,"x":"골드 획득량 18%"},{"n":"분노","t":2,"x":"공격 속도 15%"},{"n":"분노+","t":2,"x":"공격 속도 20%"},{"n":"용맹++","t":2,"x":"데미지 112.5%"},{"n":"믿음+","t":2,"x":"모든 용병의 클릭 데미지 60%"},{"n":"투쟁의 오라","t":2,"x":"모든 용병의 데미지 15%"},{"n":"개의 습성","t":2,"x":"공격 속도 20%"},{"n":"암석 던지기","t":2,"x":"데미지 112.5%"},{"n":"얼음 송곳","t":2,"x":"데미지 112.5%"},{"n":"지혜의 돌","t":2,"x":"모든 용병의 클릭 데미지 60%"},{"n":"발도술","t":2,"x":"데미지 112.5% & 즉시 공격 확률 9%"},{"n":"어둠의 정수","t":2,"x":"데미지 112.5%"},{"n":"탐지 구슬+","t":2,"x":"아이템 드랍률 18%"},{"n":"왕실 칙령+","t":2,"x":"명성 12% & 즉시 공격 속도 8%"},{"n":"약점 공격","t":2,"x":"추가 데미지 10000"},{"n":"도발","t":2,"x":"데미지 30% & 데미지 편차 20%"},{"n":"발목 공격","t":2,"x":"추가 데미지 6000"},{"n":"휴대용 금주머니","t":2,"x":"골드 저장량 30%"},{"n":"금화 발견++","t":3,"x":"골드 획득량 27%"},{"n":"믿음++","t":3,"x":"모든 용병의 클릭 데미지 90%"},{"n":"투쟁의 오라+","t":3,"x":"모든 용병의 데미지 24%"},{"n":"넝쿨 채찍","t":3,"x":"추가 데미지 10000 & 종족이 식물인 용병의 데미지 +[식물] 용병 수 X 40% & 종족이 식물인 용병의 클릭 데미지 +[식물] 용병 수 X 40%"},{"n":"고대신 조각상","t":3,"x":"골드 획득량 27%"},{"n":"악마의 표식","t":3,"x":"데미지 112.5% & 클릭 데미지 150% & 즉시 공격 확률 12%"},{"n":"전술","t":3,"x":"모든 용병의 데미지 24% & 모든 용병의 클릭 데미지 60% & 모든 용병의 추가 클릭 확률 3%"},{"n":"저주의 문양","t":3,"x":"물리 저항력 감소 1.5%"},{"n":"저항력 약화","t":3,"x":"마법 저항력 감소 2%"},{"n":"탐지 구슬++","t":3,"x":"아이템 드랍률 27%"},{"n":"휴대용 금주머니+","t":3,"x":"골드 저장량 45%"},{"n":"왕실 칙령++","t":3,"x":"명성 18% & 즉시 공격 속도 10%"},{"n":"에테르 에너지 커터","t":3,"x":"클릭 저항력 감소 2.25%"},{"n":"동물뼈 군단의 단결력","t":3,"x":"개성이 동물뼈 언데드인 용병의 추가 데미지 +[동물뼈 언데드] 용병 수 X 12500 & 개성이 동물뼈 언데드인 용병의 베이스 데미지 +[동물뼈 언데드] 용병 수 X 2%"},{"n":"바람의 문양","t":3,"x":"모든 용병의 공격 속도 2.5%"},{"n":"눈 던지기","t":3,"x":"데미지 12% & 공격 속도 25%"},{"n":"보호막 관통","t":3,"x":"무효화 관통 2%"},{"n":"혼돈의 저주","t":3,"x":"카오스 취약성 1%"},{"n":"디바인 스트라이크","t":3,"x":"신성 데미지 9000"},{"n":"수면","t":3,"x":"골드 저장량 90% & 데미지 -75%"},{"n":"칼라무쉬의 단결력","t":3,"x":"칼라무쉬 베이스 데미지 16% & 칼라무쉬 데미지 50%"},{"n":"달팽이 집","t":4,"x":"골드 저장량 60%"},{"n":"분노++","t":4,"x":"공격 속도 30%"},{"n":"바람의 문양+","t":4,"x":"모든 용병의 공격 속도 4%"},{"n":"돌격","t":4,"x":"크리티컬 확률 1%"},{"n":"투쟁의 오라++","t":4,"x":"모든 용병의 데미지 36%"},{"n":"언데드 전용 칼슘","t":4,"x":"크리티컬 확률 1% & 종족이 언데드인 용병의 강타 배수 +[언데드] 용병 수 X 0.02"},{"n":"물어 뜯기","t":4,"x":"추가 데미지 15000 & 크리티컬 배수 1배"},{"n":"할퀴기","t":4,"x":"데미지 112.5% & 피격 지속시간 감소 10%"},{"n":"두번째 심장","t":4,"x":"공격 속도 30%"},{"n":"추적","t":4,"x":"크리티컬 확률 1%"},{"n":"암기","t":4,"x":"크리티컬 배수 1배"},{"n":"재물신 관우의 부적","t":4,"x":"골드 획득량 36%"},{"n":"저주의 문양+","t":4,"x":"물리 저항력 감소 2%"},{"n":"저항력 약화+","t":4,"x":"마법 저항력 감소 3%"},{"n":"예리한 눈","t":4,"x":"크리티컬 배수 1배"},{"n":"모나크의 탐지 구슬","t":4,"x":"아이템 드랍률 36% & 아티팩트 드랍 확률 6%"},{"n":"에테르 에너지 커터+","t":4,"x":"클릭 저항력 감소 3%"},{"n":"혼돈의 화살","t":4,"x":"모든 카오스 용병의 데미지 51% & 모든 카오스 용병의 성장 데미지 1%"},{"n":"화염 방사","t":4,"x":"데미지 150% & 마법 용병의 강타배수 0.15"},{"n":"출혈","t":4,"x":"추가 데미지 13500"},{"n":"내면의 악마","t":4,"x":"강타배수 0.75 & 즉시 공격 데미지 15%"},{"n":"운명의 퍼즐조각","t":4,"x":"자동 클릭 확률 20%"},{"n":"시공의 폭풍","t":4,"x":"크리티컬 배수 1배"},{"n":"무영권","t":4,"x":"자동 클릭 속도 18%"},{"n":"이계의 에너지","t":4,"x":"데미지 150% & 즉시 공격 속도 12%"},{"n":"불굴의 투지","t":4,"x":"데미지 150% & 즉시 공격 데미지 15%"},{"n":"혼돈의 용맹","t":4,"x":"데미지 180% & 데미지 편차 12%"},{"n":"크리스마스 트리","t":4,"x":"크리티컬 확률 1.2% & 모든 용병의 클릭 데미지 25%"},{"n":"흔한 라이터","t":4,"x":"강타배수 0.75"},{"n":"흔한 포켓 나이프","t":4,"x":"모든 용병의 데미지 48% & 즉시 공격 속도 12%"},{"n":"실전 경험","t":4,"x":"데미지 150% & 추가 클릭 확률 24%"},{"n":"이계의 거울","t":4,"x":"모든 용병의 최대 레벨 1 & 즉시 공격 확률 12%"},{"n":"진정한 용기","t":4,"x":"데미지 150% & 클릭 데미지 200% & 베이스 데미지 12%"},{"n":"혼돈의 저주+","t":4,"x":"카오스 취약성 1.5%"},{"n":"보호막 관통+","t":4,"x":"무효화 관통 3%"},{"n":"투쟁의 소용돌이","t":4,"x":"데미지 450% & 모든 용병의 데미지 -36%"},{"n":"분노의 소용돌이","t":4,"x":"공격 속도 90% & 모든 용병의 공격 속도 -3%"},{"n":"혼돈의 소용돌이","t":4,"x":"강타확률 16% & 모든 용병의 강타확률 -1.5%"},{"n":"디바인 스트라이크+","t":4,"x":"신성 데미지 12000"},{"n":"마인드 쉴드","t":4,"x":"모든 용병의 피격 지속시간 감소 4%"},{"n":"지혜의 보석","t":4,"x":"모든 용병의 클릭 데미지 80% & 무효화 관통 2%"},{"n":"소울 트랩","t":4,"x":"회피 확률 감소 2%"},{"n":"드레그빈의 두개의 발톱","t":4,"x":"연타 확률 -20% & 최대 레벨 12"},{"n":"탈모","t":4,"x":"공격 속도 25% & 추가 데미지 12000"},{"n":"휴대용 금주머니++","t":4,"x":"골드 저장량 70%"},{"n":"제리의 군자금","t":4,"x":"골드 획득량 25% & 골드 저장량 50%"},{"n":"루비 채굴","t":4,"x":"루비 드랍률 15%"},{"n":"토파즈 탐지","t":4,"x":"토파즈 드랍률 15%"},{"n":"사파이어 공명","t":4,"x":"사파이어 드랍률 15%"},{"n":"에머랄드 에너지","t":4,"x":"에메랄드 드랍률 15%"},{"n":"자수정 추출","t":4,"x":"자수정 드랍률 15%"},{"n":"럭키 핸드","t":4,"x":"아티팩트 드랍 확률 9%"},{"n":"라이프 스파이크","t":4,"x":"흡수 확률 감소 1.2%"},{"n":"발도술+","t":4,"x":"데미지 225% & 즉시 공격 확률 9% & 즉시 공격 데미지 9%"},{"n":"조금 시든 세잎 클로버","t":4,"x":"모든 용병의 행운 확률 0.8% & 모든 용병의 행운 배수 0.04"},{"n":"인어의 노래","t":5,"x":"모든 용병의 데미지 60% & 즉시 공격 확률 15%"},{"n":"객스의 도끼 내려치기+","t":5,"x":"추가 데미지 24000 & 공격 속도 30%"},{"n":"바람의 문양++","t":5,"x":"모든 용병의 공격 속도 6%"},{"n":"제압","t":5,"x":"물리 저항력 감소 3%"},{"n":"니피의 주사위+","t":5,"x":"골드 획득량 63% & 아티팩트 드랍 확률 16%"},{"n":"저주의 문양++","t":5,"x":"물리 저항력 감소 3%"},{"n":"저항력 약화++","t":5,"x":"마법 저항력 감소 4%"},{"n":"모나크의 탐지 구슬+","t":5,"x":"아이템 드랍률 45% & 아티팩트 드랍 확률 8%"},{"n":"철통 수비++","t":5,"x":"모든 용병의 클릭 데미지 210% & 모든 용병의 베이스 데미지 2.4% & 즉시 공격 데미지 15%"},{"n":"성서","t":5,"x":"모든 용병의 신성 데미지 20%"},{"n":"에테르 에너지 커터++","t":5,"x":"클릭 저항력 감소 4.5%"},{"n":"혼돈의 화살+","t":5,"x":"모든 카오스 용병의 데미지 66% & 모든 카오스 용병의 성장 데미지 1.4%"},{"n":"마검 이퀄라이져++","t":5,"x":"데미지 225% & 순수 데미지 30000"},{"n":"강력한 일격","t":5,"x":"강타확률 8%"},{"n":"광분","t":5,"x":"연타 확률 8%"},{"n":"광폭화","t":5,"x":"공격 속도 40% & 추가 데미지 12000"},{"n":"자아붕괴","t":5,"x":"강타확률 8%"},{"n":"재거의 저장공간++","t":5,"x":"골드 저장량 105%"},{"n":"마력 연결","t":5,"x":"모든 마법 용병의 데미지 108% & 모든 마법 용병의 성장 데미지 2%"},{"n":"블러드러스트","t":5,"x":"모든 물리 용병의 데미지 108% & 모든 물리 용병의 성장 데미지 2%"},{"n":"혼돈의 투쟁 오라","t":5,"x":"모든 카오스 용병의 데미지 66% & 모든 카오스 용병의 강타 배수 증폭 1.2%"},{"n":"예지의 눈","t":5,"x":"모든 용병의 추가 데미지 4000 & 즉시 공격 속도 15%"},{"n":"불신","t":5,"x":"강타확률 6% & 카오스 취약성 1.5%"},{"n":"혼돈의 저주++","t":5,"x":"카오스 취약성 2%"},{"n":"정당한 분노","t":5,"x":"공격 속도 30% & 클릭 데미지 150%"},{"n":"정당한 분노+","t":5,"x":"공격 속도 40% & 클릭 데미지 200%"},{"n":"절대적 분노","t":5,"x":"공격 속도 30% & 최대 레벨 3"},{"n":"절대적 분노+","t":5,"x":"공격 속도 40% & 최대 레벨 5"},{"n":"압도적 용맹","t":5,"x":"베이스 데미지 9% & 최대 레벨 5"},{"n":"이계의 거울+","t":5,"x":"모든 용병의 최대 레벨 2 & 즉시 공격 확률 15%"},{"n":"디바인 스트라이크++","t":5,"x":"신성 데미지 15000 & 모든 용병의 신성 데미지 5%"},{"n":"마인드 쉴드+","t":5,"x":"모든 용병의 피격 지속시간 감소 6%"},{"n":"소울 트랩+","t":5,"x":"회피 확률 감소 3%"},{"n":"또 다른 퍼루나 해의 진주","t":5,"x":"모든 용병의 베이스 데미지 3% & 아이템 드랍률 16% & [퍼루나]지역 용병 데미지 [퍼루나]용병 수 * 70%"},{"n":"믿음+++","t":5,"x":"모든 용병의 클릭 데미지 150% & 모든 용병의 베이스 데미지 2.1%"},{"n":"왕실 칙령+++","t":5,"x":"명성 24% & 모든 용병의 최대 레벨 1 & 즉시 공격 속도 15%"},{"n":"역풍의 문양","t":5,"x":"모든 용병의 공격 속도 -3% & 모든 용병의 강타배수 0.15"},{"n":"R.I.P","t":5,"x":"자동 클릭 확률 12% & 자동 클릭 속도 24% & 자동 클릭 데미지 6%"},{"n":"도발+","t":5,"x":"행운 확률 5% & 데미지 편차 30%"},{"n":"럭키 핸드+","t":5,"x":"아티팩트 드랍 확률 12%"},{"n":"라이프 스파이크+","t":5,"x":"흡수 확률 감소 1.6%"},{"n":"용기의 방패","t":5,"x":"모든 용병의 공포 극복 확률 0.8% & 모든 용병의 추가 클릭 확률 4% & 즉시 공격 속도 8%"},{"n":"네잎 클로버","t":5,"x":"모든 용병의 행운 확률 1.2% & 모든 용병의 행운 배수 0.06"},{"n":"로버트의 지휘 도끼","t":6,"x":"모든 용병의 데미지 60% & 모든 용병의 강타배수 0.1 & 모든 용병의 최대 레벨 2"},{"n":"인어의 노래+","t":6,"x":"모든 용병의 데미지 84% & 즉시 공격 확률 25%"},{"n":"모나크의 탐지 구슬++","t":6,"x":"아이템 드랍률 54% & 아티팩트 드랍 확률 10%"},{"n":"혼돈의 화살++","t":6,"x":"모든 카오스 용병의 데미지 90% & 모든 카오스 용병의 성장 데미지 1.8%"},{"n":"스탈링의 애교","t":6,"x":"물리 저항력 감소 3.5%"},{"n":"크레이지 핸드","t":6,"x":"추가 클릭 데미지 40% & 자동 클릭 속도 30% & 자동 클릭 데미지 12%"},{"n":"영혼 흡수","t":6,"x":"소울 클릭 확률 2.5%"},{"n":"운명의 변절자","t":6,"x":"강타배수 0.75 & 무효화 관통 2.5%"},{"n":"초신속","t":6,"x":"연타 확률 10% & 연타 데미지 2.5%"},{"n":"격투가의 긍지","t":6,"x":"공격 속도 40% & 추가 클릭 데미지 15%"},{"n":"데쓰 핸드","t":6,"x":"강타확률 5% & 강타배수 1 & 모든 용병의 강타확률 0.5%"},{"n":"혼돈의 분노","t":6,"x":"공격 속도 45% & 데미지 편차 10%"},{"n":"괴수의 본능","t":6,"x":"크리티컬 확률 1.5%"},{"n":"리나의 무영권","t":6,"x":"자동 클릭 속도 20% & 추가 클릭 확률 20%"},{"n":"명중","t":6,"x":"강타확률 8% & 회피 확률 감소 2%"},{"n":"퍼루나 해의 진주+","t":6,"x":"데미지 150% & 공격 속도 35% & [퍼루나]지역 용병 데미지 [퍼루나]용병 수 * 60%"},{"n":"절대적 용맹","t":6,"x":"데미지 150% & 무효화 관통 3%"},{"n":"특이점 생성","t":6,"x":"강타확률 -11% & 강타배수 2.4"},{"n":"우프레틴의 책임감","t":6,"x":"데미지 187.5% & 무효화 관통 4%"},{"n":"파이썬의 느린 신경","t":6,"x":"공격 속도 -90% & 강타배수 2.8"},{"n":"이계의 거울++","t":6,"x":"모든 용병의 최대 레벨 3 & 즉시 공격 확률 18%"},{"n":"명예 훈장","t":6,"x":"모든 용병의 데미지 84% & 무효화 관통 3% & 즉시 공격 속도 12%"},{"n":"운명의 퍼즐조각+","t":6,"x":"자동 클릭 확률 20% & 자동 클릭 속도 12%"},{"n":"그레이트 에테르 커터","t":6,"x":"클릭 저항력 감소 4.5% & 최대 레벨 8"},{"n":"마인드 쉴드++","t":6,"x":"모든 용병의 피격 지속시간 감소 8%"},{"n":"에테르 에너지 커터+++","t":6,"x":"클릭 저항력 감소 4% & 무효화 관통 2%"},{"n":"머스킷 정조준","t":6,"x":"강타배수 3 & 연타 확률 -500%"},{"n":"끌어당김의 법칙","t":6,"x":"정수 드랍 확률 6%"},{"n":"소울 트랩++","t":6,"x":"회피 확률 감소 4%"},{"n":"피라미드 파워","t":6,"x":"모든 용병의 클릭 데미지 300% & 모든 용병의 데미지 300% & 마법 저항력 감소 6%"},{"n":"살인 충동","t":6,"x":"강타배수 2.2 & 연타 확률 -30% & 피격 지속시간 감소 25%"},{"n":"진정한 리더의 긍지","t":6,"x":"클릭 데미지 250% & 추가 클릭 확률 40%"},{"n":"천상의 믿음","t":6,"x":"모든 용병의 클릭 데미지 180% & 모든 용병의 베이스 데미지 3%"},{"n":"투쟁의 오라+++","t":6,"x":"모든 용병의 데미지 60% & 모든 용병의 강타배수 0.1"},{"n":"역풍의 문양+","t":6,"x":"모든 용병의 공격 속도 -4% & 모든 용병의 강타배수 0.2"},{"n":"매직 미사일+","t":6,"x":"추가 클릭 확률 36% & 추가 클릭 데미지 15%"},{"n":"인생은 로또","t":6,"x":"모든 용병의 행운 확률 1.75%"},{"n":"고대의 여인상","t":6,"x":"행운 확률 6% & 골드 획득량 30%"},{"n":"더블 어택+","t":6,"x":"더블 어택 확률 20%"},{"n":"용기의 방패+","t":6,"x":"모든 용병의 공포 극복 확률 1% & 모든 용병의 추가 클릭 확률 5% & 즉시 공격 속도 10%"},{"n":"돌격+","t":6,"x":"크리티컬 확률 1% & 무효화 관통 2%"},{"n":"융합","t":6,"x":"모든 용병의 추가 클릭 확률 5% & 모든 용병의 강타배수 0.09 & 즉시 공격 데미지 9%"},{"n":"드래곤 브레스","t":7,"x":"데미지 270% & 추가 클릭 확률 45% & 강타확률 9%"},{"n":"이졸데의 신념+","t":7,"x":"데미지 150% & 공격 속도 50%"},{"n":"오염된 발할라의 빛","t":7,"x":"강타배수 1.5"},{"n":"죽음의 낙인","t":7,"x":"데미지 180% & 연타 확률 10% & 공포 극복 확률 2.5%"},{"n":"세번째 심장","t":7,"x":"공격 속도 45% & 피격 지속시간 감소 15%"},{"n":"공포","t":7,"x":"모든 용병의 강타확률 1% & 모든 용병의 추가 클릭 확률 5%"},{"n":"웨폰 블록","t":7,"x":"강타확률 10% & 피격 지속시간 감소 25%"},{"n":"마인드 컨트롤","t":7,"x":"모든 용병의 강타배수 0.1 & 마법 용병의 강타배수 0.1"},{"n":"헤드 샷","t":7,"x":"강타확률 8% & 회피 확률 감소 3% & 즉시 공격 데미지 21%"},{"n":"자유인의 의지","t":7,"x":"추가 클릭 확률 55% & 추가 클릭 데미지 15%"},{"n":"인내의 열매","t":7,"x":"공격 속도 40% & 모든 용병의 최대 레벨 2 & 모든 용병의 피격 지속시간 감소 8%"},{"n":"이계의 발할라의 빛","t":7,"x":"강타배수 2 & 피격 회피 확률 50% & 회피시 데미지 증가 6%"},{"n":"혼돈의 바람","t":7,"x":"공격 속도 카오스 8%"},{"n":"자룰의 생존의지","t":7,"x":"모든 용병의 데미지 150% & 모든 용병의 공포 극복 확률 1% & 무효화 관통 3%"},{"n":"혼합된 투쟁의 오라","t":7,"x":"모든 용병의 데미지 36% & 모든 용병의 공격 속도 6%"},{"n":"마법의 투쟁","t":7,"x":"모든 마법 용병의 데미지 135% & 마법 용병의 강타배수 0.15"},{"n":"스트레이트 플러시","t":7,"x":"강타확률 9% & 무효화 관통 3%"},{"n":"역풍의 문양++","t":7,"x":"모든 용병의 공격 속도 -6% & 모든 용병의 강타배수 0.3"},{"n":"딜비도의 생선 뼈","t":7,"x":"회피 확률 감소 4% & 클릭 저항력 감소 2%"},{"n":"에테르 에너지 커터++++","t":7,"x":"클릭 저항력 감소 4.5% & 무효화 관통 3%"},{"n":"믿음에 대한 응답","t":7,"x":"모든 용병의 클릭 데미지 210% & 모든 용병의 베이스 데미지 4.5%"},{"n":"랜덤신의 축복","t":7,"x":"모든 용병의 최대 레벨 3 & 모든 용병의 베이스 데미지 4.5%"},{"n":"지옥왕의 위엄+","t":7,"x":"추가 클릭 확률 44.4% & 크리티컬 확률 1%"},{"n":"불운의 낙인","t":7,"x":"행운 확률 -6.66% & 모든 용병의 행운 확률 2.22%"},{"n":"연금 복권","t":7,"x":"행운 확률 7% & 모든 용병의 최대 레벨 2"},{"n":"스톤 하트","t":7,"x":"데미지 450% & 공포 극복 확률 7% & 즉시 공격 확률 21%"},{"n":"수호","t":7,"x":"아군 피격 보호 확률 2%"},{"n":"용기의 방패++","t":7,"x":"모든 용병의 공포 극복 확률 1.2% & 모든 용병의 추가 클릭 확률 6% & 즉시 공격 속도 12%"},{"n":"제압+","t":7,"x":"물리 저항력 감소 3% & 모든 물리 용병의 강타 배수 0.1"},{"n":"융합+","t":7,"x":"모든 용병의 추가 클릭 확률 7% & 모든 용병의 강타배수 0.12 & 즉시 공격 데미지 12%"},{"n":"쥬쥬의 저주의 문양","t":8,"x":"클릭 저항력 감소 6% & 회피 확률 감소 2%"},{"n":"다크 마인드","t":8,"x":"크리티컬 확률 2%"},{"n":"명사수 새라+","t":8,"x":"크리티컬 확률 2% & 무효화 관통 2%"},{"n":"그림자 독","t":8,"x":"연타 확률 9% & 피격 지속시간 감소 35%"},{"n":"마법의 바람","t":8,"x":"모든 마법 용병의 공격 속도 10% & 마법 저항력 감소 2%"},{"n":"짐승의 눈","t":8,"x":"크리티컬 배수 1.5배 & 무효화 관통 2%"},{"n":"밀집 대형","t":8,"x":"모든 용병의 공격 속도 -10% & 모든 용병의 강타배수 0.5"},{"n":"바람의 문양+++","t":8,"x":"모든 용병의 공격 속도 7.5%"},{"n":"랜덤신의 가호","t":8,"x":"강타확률 7% & 강타배수 0.9"},{"n":"전사들의 열정","t":8,"x":"공격 속도 물리 6% & 강타확률 물리 0.6%"},{"n":"칼라무쉬 치즈+++","t":8,"x":"자동 클릭 속도 30% & 자동 클릭 확률 20% & 모든 용병의 추가 클릭 확률 7%"},{"n":"새라의 궁술","t":8,"x":"추가 클릭 확률 70% & 회피 확률 감소 2%"},{"n":"성공적 실험","t":8,"x":"모든 용병의 행운 확률 2.25%"},{"n":"읽으면 복이 오는 책","t":8,"x":"행운 확률 8% & 모든 용병의 최대 레벨 3"},{"n":"변형된 혼합의 투쟁","t":8,"x":"모든 용병의 데미지 36% & 강타배수 혼합 0.22"},{"n":"분노의 끝","t":8,"x":"공격 속도 50% & 추가 데미지 10000"},{"n":"수호+","t":8,"x":"아군 피격 보호 확률 3%"},{"n":"간절한 소망","t":8,"x":"오브 획득 확률+2.5%"},{"n":"데들리 플랜","t":8,"x":"모든 용병의 치명타 배수 0.22"},{"n":"전사들의 열정+","t":8,"x":"공격 속도 물리 8% & 강타확률 물리 0.8%"},{"n":"융합++","t":8,"x":"모든 용병의 추가 클릭 확률 9% & 모든 용병의 강타배수 0.15 & 즉시 공격 데미지 15%"},{"n":"아카식 블레이드","t":8,"x":"즉시 공격 확률 20% & 즉시 공격 데미지 20% & 즉시 공격 속도 20%"},{"n":"로빈의 바람의 문양","t":9,"x":"모든 용병의 공격 속도 10% & 모든 용병의 추가 클릭 확률 10%"},{"n":"질주 본능","t":9,"x":"모든 용병의 공격 속도 10% & 소울 클릭 확률 1.5%"},{"n":"아라크네의 거미줄+","t":9,"x":"모든 용병의 강타확률 2% & 모든 마법 용병의 강타 확률 0.4% & 모든 용병의 강타배수 0.12"},{"n":"마검 디멘션 커터+","t":9,"x":"크리티컬 배수 2배"},{"n":"우르간의 방패+","t":9,"x":"크리티컬 확률 2.5% & 모든 용병의 추가 클릭 확률 3%"},{"n":"딕의 풀 플레이트 아머+","t":9,"x":"크리티컬 배수 2배"},{"n":"노쓰페라투쓰의 위압","t":9,"x":"강타확률 10% & 강타배수 1.5 & 피격 지속시간 감소 35%"},{"n":"본 키메라 합성","t":9,"x":"강타확률 10% & 모든 용병의 강타확률 1% & 모든 용병의 강타배수 0.25"},{"n":"크시론의 자부심","t":9,"x":"강타확률 12% & 추가 데미지 증폭 40% & 무효화 관통 2%"},{"n":"사우쓰페라투쓰의 위압","t":9,"x":"강타배수 1.8 & 피격 지속시간 감소 20%"},{"n":"슬라임의 부드러움","t":9,"x":"모든 용병의 강타확률 2.2% & 모든 용병의 추가 클릭 확률 4%"},{"n":"영혼 흡수+","t":9,"x":"소울 클릭 확률 2.25% & 소울 클릭 배수 0.1"},{"n":"죽음의 응시+++","t":9,"x":"최대 체력 감소 2% & 무효화 관통 2%"},{"n":"애향심","t":9,"x":"모든 용병의 행운 확률 2.5% & 모든 용병의 행운 배수 0.1"},{"n":"용감한 콩인간","t":9,"x":"공포 극복 확률 100% & 무효화 관통 2%"},{"n":"조화의 나뭇잎","t":9,"x":"모든 용병의 데미지 33.3% & 모든 트리니티 용병의 강타확률 3%"},{"n":"폭력적 조화","t":9,"x":"모든 용병의 추가 클릭 데미지 2% & 트리니티 용병의 강타배수 0.4"},{"n":"간절한 소망+","t":9,"x":"오브 획득 확률+3.5%"},{"n":"공포+","t":9,"x":"모든 용병의 강타확률 1% & 모든 용병의 강타배수 0.1 & 모든 용병의 추가 클릭 확률 8%"},{"n":"뿔레별 구하기 대소동","t":9,"x":"모든 용병의 클릭 데미지 300% & 모든 용병의 추가 클릭 확률 12%"}];
+const RANKS = ['E', 'D', 'C', 'B', 'A', 'S', 'G', 'X', 'H'];
+// 스킬 급(1~9급) 가중치 % — 칸마다 쓰는 표
+const W = {
+  V0: [30, 25, 20, 14, 8, 2, 1, 0, 0], V1: [0, 25, 30, 25, 14, 3, 2, 1, 0], V2: [0, 0, 30, 40, 20, 5, 3, 2, 0],
+  V3: [0, 0, 0, 60, 25, 7, 5, 3, 0], V4: [0, 0, 0, 0, 70, 15, 10, 5, 0], V5: [0, 0, 0, 0, 0, 75, 15, 10, 0],
+  X: [0, 0, 0, 0, 0, 15, 55, 25, 5], H: [0, 0, 0, 0, 0, 10, 45, 30, 15],
+};
+// 랜용 등급 → 1~5번 칸이 쓰는 표
+const SLOT_TABLE = {
+  E: ['V0', 'V0', 'V0', 'V0', 'V2'], D: ['V0', 'V0', 'V1', 'V1', 'V2'], C: ['V0', 'V0', 'V1', 'V1', 'V3'],
+  B: ['V0', 'V1', 'V1', 'V2', 'V3'], A: ['V0', 'V1', 'V2', 'V2', 'V4'], S: ['V1', 'V1', 'V2', 'V2', 'V5'],
+  G: ['V1', 'V2', 'V2', 'V3', 'V5'], X: ['V1', 'V2', 'V3', 'V4', 'X'], H: ['V2', 'V2', 'V3', 'V4', 'H'],
+};
+const COST = (r) => (RANKS.indexOf(r) <= 3 ? 2 : 3);
+const POOL = Array.from({ length: 9 }, (_, t) => SK.filter((s) => s.t === t + 1));
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const KEY = 'bbuleRandomSkill';
+let st = { rank: 'X', want: [], q: '' };
+try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s === 'object') st = Object.assign(st, s); } catch (e) {}
+st.want = (st.want || []).filter((n) => SK.some((s) => s.n === n));
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ rank: st.rank, want: st.want })); } catch (e) {} };
+const skill = (n) => SK.find((s) => s.n === n);
+
+// 칸 s 에서 스킬 x 가 나올 확률
+const pSlot = (rank, s, x) => W[SLOT_TABLE[rank][s]][x.t - 1] / 100 / POOL[x.t - 1].length;
+const pRoll1 = (rank, x) => 1 - [0, 1, 2, 3, 4].reduce((q, s) => q * (1 - pSlot(rank, s, x)), 1);
+
+// 한 번 돌릴 때 원하는 스킬(중복 포함)이 모두 나올 확률 — 칸을 하나씩 보며 '모은 개수' 상태로 정확히 셈
+function rollProb(rank, want) {
+  const names = [...new Set(want)], need = names.map((n) => want.filter((w) => w === n).length);
+  if (!names.length) return 1;
+  if (need.reduce((a, b) => a + b, 0) > 5) return 0;
+  const key = (c) => c.join(',');
+  let dp = new Map([[key(need.map(() => 0)), 1]]);
+  for (let s = 0; s < 5; s++) {
+    const ps = names.map((n) => pSlot(rank, s, skill(n))), rest = 1 - ps.reduce((a, b) => a + b, 0);
+    const nx = new Map();
+    const add = (k, v) => nx.set(k, (nx.get(k) || 0) + v);
+    for (const [k, v] of dp) {
+      const c = k.split(',').map(Number);
+      add(k, v * rest);
+      ps.forEach((p, i) => { if (!p) return; const c2 = c.slice(); c2[i] = Math.min(need[i], c2[i] + 1); add(key(c2), v * p); });
+    }
+    dp = nx;
+  }
+  return dp.get(key(need)) || 0;
+}
+
+const fmtN = (n) => {
+  if (!Number.isFinite(n)) return '∞';
+  if (n >= 1e8) return (n / 1e8).toFixed(n >= 1e9 ? 0 : 1).replace(/\.0$/, '') + '억';
+  if (n >= 1e4) return (n / 1e4).toFixed(n >= 1e5 ? 0 : 1).replace(/\.0$/, '') + '만';
+  return Math.round(n).toLocaleString();
+};
+const fmtP = (p) => (p >= 0.01 ? (p * 100).toFixed(2) + '%' : p >= 1e-6 ? (p * 100).toPrecision(2) + '%' : p > 0 ? '1/' + fmtN(1 / p) : '0%');
+// q 확률로 성공하려면 몇 번 (기하 분포)
+const nFor = (p, q) => (p >= 1 ? 1 : p <= 0 ? Infinity : Math.ceil(Math.log(1 - q) / Math.log(1 - p)));
+
+function renderRanks() {
+  $('ranks').innerHTML = RANKS.map((r) => `<button class="btn rank${st.rank === r ? ' on' : ''}" data-rank="${r}">${r}</button>`).join('');
+  const tb = SLOT_TABLE[st.rank].map((v) => W[v]);
+  const lo = (w) => w.findIndex((x) => x > 0) + 1, hi = (w) => 9 - [...w].reverse().findIndex((x) => x > 0);
+  $('rankNote').innerHTML = `칸마다 나올 수 있는 급: ${tb.map((w, i) => `${i + 1}번 ${lo(w)}~${hi(w)}급`).join(' · ')} · 한 번 돌리는 데 ${COST(st.rank)}개 (뿔레 코인 또는 랜덤 포인트)`;
+}
+function renderWant() {
+  $('want').innerHTML = st.want.length ? st.want.map((n, i) => {
+    const x = skill(n), p = pRoll1(st.rank, x);
+    return `<div class="chip"><span class="tier t${x.t}">${x.t}급</span><div class="grow"><div>${esc(x.n)}</div><div class="tx">${esc(x.x)}</div></div>
+      <span class="p" title="한 번 돌릴 때 이 스킬이 한 칸이라도 나올 확률">${p > 0 ? fmtP(p) : '<span style="color:var(--bad)">안 나옴</span>'}</span>
+      <button class="x" data-del="${i}" title="빼기">✕</button></div>`;
+  }).join('') : '<p class="note" style="margin:0">아래에서 원하는 스킬을 눌러 넣어 주세요 (최대 5개).</p>';
+}
+function renderList() {
+  const q = st.q.trim().replace(/\s+/g, ' ');
+  const tq = /^([1-9])\s*급$/.exec(q);
+  const tb = SLOT_TABLE[st.rank].map((v) => W[v]);
+  const can = (t) => tb.some((w) => w[t - 1] > 0);
+  let xs = SK.filter((s) => (tq ? s.t === +tq[1] : !q || (s.n + ' ' + s.x).replace(/\s+/g, '').includes(q.replace(/\s+/g, ''))));
+  xs = xs.slice().sort((a, b) => (can(b.t) - can(a.t)) || (b.t - a.t) || a.n.localeCompare(b.n, 'ko'));
+  $('list').innerHTML = xs.map((s) => `<div class="item${can(s.t) ? '' : ' off'}" data-add="${esc(s.n)}"><span class="tier t${s.t}">${s.t}급</span>
+    <div><div class="nm">${esc(s.n)}</div><div class="tx">${esc(s.x)}</div></div></div>`).join('') || '<div class="item muted">찾는 스킬이 없어요</div>';
+}
+
+function renderOut(sim) {
+  if (!st.want.length) { $('out').innerHTML = '<p class="note" style="margin:0">원하는 스킬을 넣으면 나와요.</p>'; return; }
+  const p = rollProb(st.rank, st.want), c = COST(st.rank);
+  if (!(p > 0)) {
+    $('out').innerHTML = `<p style="margin:0"><b style="color:var(--bad)">${st.rank} 등급에선 이 조합이 안 나와요.</b> <span class="muted">${st.want.length > 5 ? '5칸보다 많아요.' : '나올 수 없는 급의 스킬이 있거나, 같은 칸에서만 나오는 스킬을 겹쳐 넣었어요.'}</span></p>`;
+    return;
+  }
+  const mean = 1 / p;
+  const rows = [0.5, 0.9, 0.99].map((q) => { const n = nFor(p, q); return `<tr><td>${Math.round(q * 100)}% 확률로 나옴</td><td>${fmtN(n)}번</td><td>${fmtN(n * c)}개</td></tr>`; }).join('');
+  $('out').innerHTML = `<div class="stats">
+      <div class="stat"><div class="lb">한 번에 나올 확률</div><div class="v">${fmtP(p)}</div></div>
+      <div class="stat"><div class="lb">평균 몇 번</div><div class="v">${fmtN(mean)}번</div></div>
+      <div class="stat"><div class="lb">평균 비용</div><div class="v">${fmtN(mean * c)}개</div></div></div>
+    <div class="tbl-wrap"><table><thead><tr><th></th><th>돌린 횟수</th><th>비용</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="row" style="margin-top:12px"><button class="btn big" id="go">🎲 직접 돌려 보기</button>
+      <span class="muted" style="font-size:13px">나올 때까지 실제로 굴려 봐요</span></div>
+    <div id="simOut">${sim || ''}</div>`;
+}
+
+// 한 칸 뽑기
+function drawSlot(rank, s) {
+  const w = W[SLOT_TABLE[rank][s]];
+  let r = Math.random() * 100, t = 0;
+  while (t < 8 && (r -= w[t]) >= 0) t++;
+  const pool = POOL[t];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+function hits(roll, want) {
+  const left = want.slice(), mark = roll.map(() => false);
+  roll.forEach((x, i) => { const j = left.indexOf(x.n); if (j >= 0) { left.splice(j, 1); mark[i] = true; } });
+  return { ok: !left.length, mark };
+}
+function simulate() {
+  const p = rollProb(st.rank, st.want), c = COST(st.rank);
+  const LIMIT = 3e6;
+  let n = 0, roll = null, best = null, bestHit = -1, ok = false;
+  const t0 = performance.now();
+  while (n < LIMIT) {
+    n++;
+    roll = [0, 1, 2, 3, 4].map((s) => drawSlot(st.rank, s));
+    const h = hits(roll, st.want);
+    if (h.ok) { ok = true; break; }
+    const k = h.mark.filter(Boolean).length;
+    if (k > bestHit) { bestHit = k; best = roll; }
+  }
+  const ms = performance.now() - t0;
+  let html;
+  if (ok) {
+    const h = hits(roll, st.want), luck = n <= 1 / p ? '평균보다 빨리 나왔어요 🎉' : '평균보다 늦게 나왔어요';
+    html = `<div class="res"><div class="big-num">${fmtN(n)}번째</div><div>비용 ${fmtN(n * c)}개 · ${luck}</div>
+      <div class="roll">${roll.map((x, i) => `<div class="slot${h.mark[i] ? ' hit' : ''}"><span class="sn">${i + 1}번</span><span class="tier t${x.t}">${x.t}급</span><span>${esc(x.n)}</span></div>`).join('')}</div></div>`;
+  } else {
+    // 너무 드물면 실제로 다 굴리지 않고 같은 분포에서 횟수만 뽑음
+    const m = Math.max(1, Math.ceil(Math.log(1 - Math.random()) / Math.log(1 - p)));
+    html = `<div class="res"><div class="big-num">${fmtN(m)}번째</div><div>비용 ${fmtN(m * c)}개</div>
+      <p class="note">${fmtN(LIMIT)}번까지 굴려도 안 나와서, 나머지는 확률로 횟수만 뽑았어요. 그동안 가장 많이 맞은 판 (${bestHit}개):</p>
+      <div class="roll">${(best || roll).map((x, i) => `<div class="slot${hits(best || roll, st.want).mark[i] ? ' hit' : ''}"><span class="sn">${i + 1}번</span><span class="tier t${x.t}">${x.t}급</span><span>${esc(x.n)}</span></div>`).join('')}</div></div>`;
+  }
+  renderOut(html);
+}
+
+function renderAll() { renderRanks(); renderWant(); renderList(); renderOut(); }
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rank],[data-add],[data-del],#go'); if (!b) return;
+  if (b.id === 'go') { simulate(); return; }
+  if (b.dataset.rank) { st.rank = b.dataset.rank; save(); renderAll(); return; }
+  if (b.dataset.add != null) { if (st.want.length >= 5) return; st.want.push(b.dataset.add); save(); renderWant(); renderOut(); return; }
+  if (b.dataset.del != null) { st.want.splice(+b.dataset.del, 1); save(); renderWant(); renderOut(); }
+});
+$('q').addEventListener('input', (e) => { st.q = e.target.value; renderList(); });
+renderAll();
+</script>
+</body>
+</html>
